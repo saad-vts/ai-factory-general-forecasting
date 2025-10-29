@@ -1,0 +1,11 @@
+pandas
+numpy
+pyyaml
+matplotlib
+statsmodels
+scipy
+xgboost
+prophet
+shap
+holidays
+scikit-learn

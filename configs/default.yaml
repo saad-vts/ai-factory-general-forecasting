@@ -1,0 +1,81 @@
+datasets:
+  airline:
+    url: "https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv"
+    date_col: "Month"
+    target_col: "Passengers"
+    freq: "M"
+
+  aus_beer:
+    url: "https://raw.githubusercontent.com/jbrownlee/Datasets/master/monthly-beer-production-in-austr.csv"
+    date_col: "Month"
+    target_col: "Production"
+    freq: "M"
+
+  shampoo:
+    url: "https://raw.githubusercontent.com/jbrownlee/Datasets/master/shampoo.csv"
+    date_col: "Month"
+    target_col: "Sales"
+    freq: "M"
+
+  temperature:
+    url: "https://raw.githubusercontent.com/jbrownlee/Datasets/master/daily-min-temperatures.csv"
+    date_col: "Date"
+    target_col: "Temp"
+    freq: "D"
+
+  traffic:
+    url: "https://raw.githubusercontent.com/deepakselvam774/Traffic-Flow-Prediction/refs/heads/main/TrafficDataset.csv"
+    date_col: "Date"
+    time_col: "Time"
+    target_col: "Total"
+    freq: "H"
+
+  
+  covid:
+      url: "https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/owid-covid-data.csv"
+      date_col: "date"
+      target_col: "new_cases"
+      freq: "D"
+      group_by: "location"  # Multi-series by country
+
+      
+  m5_accuracy:
+      url: "https://www.kaggle.com/competitions/m5-forecasting-accuracy/data"
+      local_path: "data/m5-forecasting-accuracy"
+      date_col: "date"
+      target_col: "sales"
+      freq: "D"
+      hierarchical: true
+      id_cols: ["store_id", "item_id"]
+  
+
+# Active dataset configuration
+dataset_name: ""
+freq: "D"  # Default frequency if not specified in dataset config
+file_candidates:
+  - daily_orders_synthetic_2022_2024.csv
+date_col: date
+target_col: orders
+weekend_days: [5, 6]
+holiday_country: AE
+mape_targets:
+  1m: 15.0
+  3m: 28.0
+  1y: 20.0
+budget_sec: 90
+random_state: 42
+metric_targets:
+  mape: 15.0
+  smape: 20.0
+  rmse: 100.0
+  wmape: 18.0
+
+# Data loading safety parameters
+timeout_sec: 30
+max_size_mb: 1000
+min_rows: 30
+max_missing_pct: 0.2
+max_outlier_pct: 0.1
+max_gap_days: 30
+allow_negative: false
+check_outliers: true
