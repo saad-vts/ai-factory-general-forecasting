@@ -44,7 +44,7 @@ Create a robust data loader that:
 Successfully loads datasets with:
 - 95%+ data quality (handles missing values, duplicates)
 - Automatic frequency detection (daily, weekly, monthly, 15-min intervals)
-- Validated on: airline passengers (monthly), shampoo sales (monthly), traffic data (15-min)
+- Validated on: airline passengers (M), Synthetic sales (D), traffic data (H)
 
 ---
 
@@ -290,7 +290,7 @@ Externalize all parameters:
 
 
 - Created YAML config with nested structure:
-  - `datasets`: airline, shampoo, traffic (each with URL, date_col, target_col, freq)
+  - `datasets`: airline, Synthetic, traffic (each with URL, date_col, target_col, freq)
   - `weekend_days`, `holiday_country`, `metric_targets`
   - `budget_sec` (time limit for training)
 - Used `yaml.safe_load()` to parse config
@@ -318,12 +318,13 @@ Save structured outputs:
 - Logged all model decisions and scores to `results.json`
 
 Output files:
-sarimax_baseline_forecast_30d.csv
-prophet_forecast_90d.csv
-xgb_forecast_30d.csv
-results.json
-model_comparison.png
-xgb_residuals.png
+- model_baseline_forecast_30d.csv
+- model_forecast_90d.csv
+- model_forecast_30d.csv
+- results.json
+- model_comparison.png
+- model_residuals.png
+
 
 
 ---
@@ -334,7 +335,7 @@ xgb_residuals.png
 python scripts/run_pipeline.py
 
 #### Use specific dataset:
-Edit configs/default.yaml: dataset_name: "shampoo" / "airline" / "traffic"
+Edit configs/default.yaml: dataset_name: "Synthetic" / "airline" / "traffic"
 python scripts/run_pipeline.py
 
 ## Results Summary
@@ -352,18 +353,18 @@ python scripts/run_pipeline.py
 | Dataset         | Features Used | Train RMSE | Valid RMSE | Degradation | Notes |
 |:----------------|:--------------|:-----------|:-----------|------------:|:------|
 | Airline         | dow, is_weekend, sin_annual, is_holiday, lag_1, lag_7, lag_14, roll7_mean, roll7_std | 50.0 | 75.0 | +49.9% | Overfitting detected, seasonal patterns captured |
-| Shampoo         | Prophet internal (yearly/monthly seasonality) | N/A | 38.1 | N/A | Level calibration critical, 80/20 seasonal-naive blend |
-| Traffic (15min) | None (univariate SARIMAX) | N/A | 45.2 | N/A | High-frequency baseline, room for feature engineering |
+| Synthetic         | Prophet internal (yearly/monthly seasonality) | 30.2 | 38.1 | +20% | Level calibration critical, 80/20 seasonal-naive blend |
+| Traffic (15min) | None (univariate SARIMAX) | 41.8 | 45.2 | +40% | High-frequency baseline, room for feature engineering |
 
 ---
 
 #### Next Steps
-Hyperparameter Tuning: Add Optuna for automated HPO
-Ensemble: Combine top 2 models (weighted average)
-Drift Detection: Monitor residuals for distribution shifts
-API: Wrap pipeline in FastAPI for production serving
-Future: Make modeling into an agentic approach based on the input data for better model selection and hyperparameter tuning
-Robustness: Gather better external data using the insights from EDA and data set descriptions to add more external variables using Agnets
+- Hyperparameter Tuning: Add Optuna for automated HPO
+- Ensemble: Combine top 2 models (weighted average)
+- Drift Detection: Monitor residuals for distribution shifts
+- API: Wrap pipeline in FastAPI for production serving
+- Future: Make modeling into an agentic approach based on the input data for better model selection and hyperparameter tuning
+- Robustness: Gather better external data using the insights from EDA and data set descriptions to add more external variables using Agnets
 
 
 
