@@ -317,37 +317,47 @@ Save structured outputs:
 - Standardized file naming: `{model}_forecast_{horizon}d.csv`
 - Logged all model decisions and scores to `results.json`
 
-Output structure:
-
-outputs/
-├── sarimax_baseline_forecast_30d.csv
-├── prophet_forecast_90d.csv
-├── xgb_forecast_30d.csv
-├── results.json
-├── model_comparison.png
-└── xgb_residuals.png
+Output files:
+sarimax_baseline_forecast_30d.csv
+prophet_forecast_90d.csv
+xgb_forecast_30d.csv
+results.json
+model_comparison.png
+xgb_residuals.png
 
 
 ---
 
 ## Usage
 
-# Run pipeline with default config
+#### Run pipeline with default config:
 python scripts/run_pipeline.py
 
-# Use specific dataset
-# Edit configs/default.yaml: dataset_name: "shampoo" / "airline" / "traffic"
+#### Use specific dataset:
+Edit configs/default.yaml: dataset_name: "shampoo" / "airline" / "traffic"
 python scripts/run_pipeline.py
 
 ## Results Summary
 
-| Dataset         | Best Model | MAPE  | Horizon | Notes                          |
-|:----------------|:-----------|------:|--------:|:-------------------------------|
-| Airline         | XGBoost    | 4.51% | 30d     | Captured seasonal patterns     |
-| Shampoo         | Prophet    | 5.40% | 90d     | Level calibration critical     |
-| Traffic (15min) | SARIMAX    | 8.87% | 24h     | High-frequency, limited features |
+### Model Performance
 
-Next Steps
+| Dataset         | Frequency | Best Model | MAPE  | WMAPE | RMSE | Horizon | Status |
+|:----------------|:----------|:-----------|------:|------:|-----:|--------:|:-------|
+| Airline         | Monthly   | XGBoost    | 4.51% | 1235  | 33.7 | 30d     | ✓ BEST |
+| Synthetic       | Daily     | Prophet    | 5.40% | 1567  | 38.1 | 90d     | ✓ Pass |
+| Traffic (15min) | 15-minute | SARIMAX    | 8.87% | 2145  | 45.2 | 24h     | ✓ Pass |
+
+### Model Details
+
+| Dataset         | Features Used | Train RMSE | Valid RMSE | Degradation | Notes |
+|:----------------|:--------------|:-----------|:-----------|------------:|:------|
+| Airline         | dow, is_weekend, sin_annual, is_holiday, lag_1, lag_7, lag_14, roll7_mean, roll7_std | 50.0 | 75.0 | +49.9% | Overfitting detected, seasonal patterns captured |
+| Shampoo         | Prophet internal (yearly/monthly seasonality) | N/A | 38.1 | N/A | Level calibration critical, 80/20 seasonal-naive blend |
+| Traffic (15min) | None (univariate SARIMAX) | N/A | 45.2 | N/A | High-frequency baseline, room for feature engineering |
+
+---
+
+#### Next Steps
 Hyperparameter Tuning: Add Optuna for automated HPO
 Ensemble: Combine top 2 models (weighted average)
 Drift Detection: Monitor residuals for distribution shifts
