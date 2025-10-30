@@ -359,12 +359,33 @@ python scripts/run_pipeline.py
 ---
 
 #### Next Steps
-- Hyperparameter Tuning: Add Optuna for automated HPO
-- Ensemble: Combine top 2 models (weighted average)
-- Drift Detection: Monitor residuals for distribution shifts
-- API: Wrap pipeline in FastAPI for production serving
-- Future: Make modeling into an agentic approach based on the input data for better model selection and hyperparameter tuning
-- Robustness: Gather better external data using the insights from EDA and data set descriptions to add more external variables using Agnets
+Next Step: Agentic Forecasting System
+
+##### Why Agentic?
+
+- Current pipeline is robust but static
+- Accuracy gains plateau without dynamic decisions
+- Need adaptive intelligence for diverse datasets
+
+##### Autonomous Agents Will:
+
+- Analyze trends visually (seasonality, intermittency)
+- Select best model (SARIMAX, Prophet, XGBoost, hybrid)
+- Trigger feature engineering & external data enrichment
+
+##### Key Capabilities:
+
+- Dynamic Model Selection
+- Accuracy Optimization via feedback loops
+- External Data Discovery (weather, holidays, macro trends)
+- Frequency-Agnostic Handling across all time granularities
+
+##### Benefits:
+
+- Higher Accuracy through adaptive learning
+- Scalability for multiple datasets
+- Context Awareness with external signals
+- Future-Proof for evolving complexity
 
 
 
