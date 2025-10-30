@@ -435,24 +435,58 @@ def main():
     
     # Determine horizons based on frequency
     freq = cfg.get("freq", "D")
-    if freq in ("MS", "ME", "M"):
+    
+    # Calculate horizons and labels based on frequency
+    if freq in ("h", "H"):
+        # For hourly data: convert days to hours
+        horizon_days = [30, 90]
+        horizons = [d * 24 for d in horizon_days]  # 720 hours and 2160 hours
+        horizon_labels = [f"{d}d" for d in horizon_days]  # "30d" and "90d"
+        horizon_display = "days (hourly)"
+        
+    elif freq in ("15min", "30min", "5min", "min"):
+        # For sub-hourly data
+        minutes_per_period = {
+            '15min': 15,
+            '30min': 30,
+            '5min': 5,
+            'min': 1
+        }
+        periods_per_hour = 60 // minutes_per_period.get(freq, 15)
+        horizon_days = [30, 90]
+        horizons = [d * 24 * periods_per_hour for d in horizon_days]
+        horizon_labels = [f"{d}d" for d in horizon_days]
+        horizon_display = f"days ({freq})"
+        
+    elif freq in ("MS", "ME", "M"):
         horizons = [3, 12]  # 3 months and 12 months
-        horizon_label = "months"
+        horizon_labels = ["3m", "12m"]
+        horizon_display = "months"
+        
     elif freq in ("W",):
         horizons = [4, 12]  # 4 weeks and 12 weeks
-        horizon_label = "weeks"
+        horizon_labels = ["4w", "12w"]
+        horizon_display = "weeks"
+        
     elif freq in ("QE", "Q"):
         horizons = [2, 4]  # 2 quarters and 4 quarters
-        horizon_label = "quarters"
+        horizon_labels = ["2q", "4q"]
+        horizon_display = "quarters"
+        
     elif freq in ("YE", "Y"):
         horizons = [1, 3]  # 1 year and 3 years
-        horizon_label = "years"
-    else:
+        horizon_labels = ["1y", "3y"]
+        horizon_display = "years"
+        
+    else:  # Daily (D, B)
         horizons = [30, 90]  # 30 days and 90 days
-        horizon_label = "days"
+        horizon_labels = ["30d", "90d"]
+        horizon_display = "days"
     
-    for horizon in horizons:
-        print(f"  Generating {horizon}-{horizon_label} forecast...")
+    print(f"  Frequency: {freq} → Horizons: {horizons} ({horizon_display})")
+    
+    for horizon, horizon_label in zip(horizons, horizon_labels):
+        print(f"\n  Generating {horizon_label} forecast ({horizon} periods)...")
         
         if model_type.startswith("sarimax"):
             f, c = forecast_sarimax(model, horizon, 
@@ -463,16 +497,28 @@ def main():
                     last_date = df.index.to_period("M").to_timestamp()[-1]
                     first_future = last_date + pd.offsets.MonthBegin(1)
                     future_dates = pd.date_range(first_future, periods=horizon, freq="MS")
+                    
                 elif freq in ("W",):
                     first_future = df.index[-1] + pd.Timedelta(weeks=1)
                     future_dates = pd.date_range(first_future, periods=horizon, freq="W")
+                    
                 elif freq in ("QE", "Q"):
                     first_future = df.index[-1] + pd.offsets.QuarterEnd(1)
                     future_dates = pd.date_range(first_future, periods=horizon, freq="QE")
+                    
                 elif freq in ("YE", "Y"):
                     first_future = df.index[-1] + pd.offsets.YearEnd(1)
                     future_dates = pd.date_range(first_future, periods=horizon, freq="YE")
-                else:
+                    
+                elif freq in ("h", "H"):
+                    first_future = df.index[-1] + pd.Timedelta(hours=1)
+                    future_dates = pd.date_range(first_future, periods=horizon, freq="h")
+                    
+                elif freq in ("15min", "30min", "5min", "min"):
+                    first_future = df.index[-1] + pd.Timedelta(freq)
+                    future_dates = pd.date_range(first_future, periods=horizon, freq=freq)
+                    
+                else:  # Daily
                     first_future = df.index[-1] + pd.Timedelta(days=1)
                     future_dates = pd.date_range(first_future, periods=horizon, freq="D")
                 
@@ -483,138 +529,165 @@ def main():
                 }, index=future_dates)
                 
                 print(f"    Forecast range: {forecast_df.index[0]} to {forecast_df.index[-1]}")
-                save_forecast(forecast_df, outdir/f"{model_type}_forecast_{horizon}{horizon_label[0]}.csv")
-                plot_forecast_results(df, forecast_df, model_type, horizon, outdir)
+                print(f"    Forecast shape: {forecast_df.shape}")
+                save_forecast(forecast_df, outdir/f"{model_type}_forecast_{horizon_label}.csv")
+                plot_forecast_results(df, forecast_df, model_type, horizon_label, outdir)
             
         elif model_type == "prophet":
-            # Ensure monthly dates are MS and build future dates BEFORE forecast
-            freq = cfg.get("freq", "MS")
-            
-            # Normalize monthly index to Month Start for consistency
+            # Build future dates based on frequency
             if freq in ("M", "ME", "MS"):
-                # Convert to period then to month start timestamp
-                last_hist_ms = df.index.to_period("M").to_timestamp()  # Defaults to start
+                last_hist_ms = df.index.to_period("M").to_timestamp()
                 first_future = last_hist_ms[-1] + pd.offsets.MonthBegin(1)
                 future_dates = pd.date_range(first_future, periods=horizon, freq="MS")
-                cfg["freq"] = "MS"
-                freq = "MS"
+                
             elif freq == "W":
                 first_future = df.index[-1] + pd.Timedelta(weeks=1)
                 future_dates = pd.date_range(first_future, periods=horizon, freq="W")
-            else:
+                
+            elif freq in ("h", "H"):
+                first_future = df.index[-1] + pd.Timedelta(hours=1)
+                future_dates = pd.date_range(first_future, periods=horizon, freq="h")
+                
+            elif freq in ("15min", "30min", "5min", "min"):
+                first_future = df.index[-1] + pd.Timedelta(freq)
+                future_dates = pd.date_range(first_future, periods=horizon, freq=freq)
+                
+            else:  # Daily
                 first_future = df.index[-1] + pd.Timedelta(days=1)
                 future_dates = pd.date_range(first_future, periods=horizon, freq="D")
 
-            print(f"  Prophet horizon starts at: {future_dates[0]} (last hist: {df.index[-1]})")
-            print(f"  Last historical value: {df['y'].iloc[-1]:.2f}")
+            print(f"    Prophet horizon: {horizon} periods")
+            print(f"    Date range: {future_dates[0]} to {future_dates[-1]}")
+            print(f"    Last historical: {df.index[-1]}, value: {df['y'].iloc[-1]:.2f}")
 
-            # Get raw forecast ONCE
-            f, c = forecast_prophet(model, horizon)
+            # Get raw forecast with correct horizon
+            f, c = forecast_prophet(model, horizon, freq=freq, last_date=df.index[-1])
+            
             if f is not None:
-                print(f"  Raw Prophet forecast[0]: {f[0]:.2f}")
+                print(f"    Raw Prophet forecast[0]: {f[0]:.2f}")
                 
-                # Level calibration using last k months (use model's in-sample fit)
-                try:
-                    k = min(12, len(df))
-                    dfp_train = df.reset_index()[["date", "y"]]
-                    dfp_train.columns = ["ds", "y"]
-                    fitted = model.predict(dfp_train)[["ds", "yhat"]].set_index("ds")["yhat"]
+                # Level calibration (only for monthly data to avoid over-adjusting hourly)
+                if freq in ("MS", "ME", "M"):
+                    try:
+                        k = min(12, len(df))
+                        dfp_train = df.reset_index()[["date", "y"]]
+                        dfp_train.columns = ["ds", "y"]
+                        fitted = model.predict(dfp_train)[["ds", "yhat"]].set_index("ds")["yhat"]
 
-                    recent_actual = df["y"].iloc[-k:].mean()
-                    recent_fitted = fitted.iloc[-k:].mean()
-                    
-                    print(f"  Recent actual mean (k={k}): {recent_actual:.2f}")
-                    print(f"  Recent fitted mean: {recent_fitted:.2f}")
-                    
-                    if recent_fitted > 0:
-                        scale = recent_actual / recent_fitted
-                        f = f * scale
-                        c["lower"] = c["lower"] * scale
-                        c["upper"] = c["upper"] * scale
-                        print(f"  Applied multiplicative level calibration: scale={scale:.3f}")
-                        print(f"  Calibrated forecast[0]: {f[0]:.2f}")
-                except Exception as e:
-                    print(f"  Level calibration skipped: {e}")
+                        recent_actual = df["y"].iloc[-k:].mean()
+                        recent_fitted = fitted.iloc[-k:].mean()
+                        
+                        print(f"    Recent actual mean (k={k}): {recent_actual:.2f}")
+                        print(f"    Recent fitted mean: {recent_fitted:.2f}")
+                        
+                        if recent_fitted > 0:
+                            scale = recent_actual / recent_fitted
+                            f = f * scale
+                            c["lower"] = c["lower"] * scale
+                            c["upper"] = c["upper"] * scale
+                            print(f"    Applied level calibration: scale={scale:.3f}")
+                    except Exception as e:
+                        print(f"    Level calibration skipped: {e}")
 
-                # Optional: stabilize with seasonal naive for monthly data
-                try:
-                    if freq == "MS" and len(df) >= 12:
-                        alpha = 0.2
-                        snaive_vals = np.array([df["y"].iloc[-12 + (i % 12)] for i in range(horizon)], dtype=float)
-                        print(f"  Seasonal naive values (first 3): {snaive_vals[:3]}")
-                        f = alpha * f + (1 - alpha) * snaive_vals
-                        c["lower"] = alpha * c["lower"] + (1 - alpha) * snaive_vals
-                        c["upper"] = alpha * c["upper"] + (1 - alpha) * snaive_vals
-                        print(f"  Blended Prophet with seasonal naive (alpha={alpha})")
-                        print(f"  Final forecast[0]: {f[0]:.2f}")
-                except Exception as e:
-                    print(f"  Seasonal-naive blending skipped: {e}")
+                    # Seasonal naive blending for monthly data
+                    try:
+                        if len(df) >= 12:
+                            alpha = 0.2
+                            snaive_vals = np.array([df["y"].iloc[-12 + (i % 12)] for i in range(horizon)], dtype=float)
+                            f = alpha * f + (1 - alpha) * snaive_vals
+                            c["lower"] = alpha * c["lower"] + (1 - alpha) * snaive_vals
+                            c["upper"] = alpha * c["upper"] + (1 - alpha) * snaive_vals
+                            print(f"    Blended with seasonal naive (alpha={alpha})")
+                    except Exception as e:
+                        print(f"    Seasonal blending skipped: {e}")
 
-                # Build forecast_df with the precomputed future_dates
+                # Ensure forecast and dates match
                 if len(f) != len(future_dates):
-                    print(f"  Adjusting dates: forecast has {len(f)} periods, expected {len(future_dates)}")
-                    future_dates = future_dates[:len(f)]
+                    print(f"    ⚠️ Length mismatch: forecast={len(f)}, dates={len(future_dates)}")
+                    min_len = min(len(f), len(future_dates))
+                    f = f[:min_len]
+                    c["lower"] = c["lower"][:min_len]
+                    c["upper"] = c["upper"][:min_len]
+                    future_dates = future_dates[:min_len]
 
                 forecast_df = pd.DataFrame(
                     {"forecast": f, "lower": c["lower"], "upper": c["upper"]},
                     index=future_dates
                 )
 
-                print(f"  Forecast shape: {forecast_df.shape}, Date range: {forecast_df.index[0]} to {forecast_df.index[-1]}")
-                print(f"  Forecast stats: mean={forecast_df['forecast'].mean():.2f}, min={forecast_df['forecast'].min():.2f}, max={forecast_df['forecast'].max():.2f}")
+                print(f"    Forecast shape: {forecast_df.shape}")
+                print(f"    Date range: {forecast_df.index[0]} to {forecast_df.index[-1]}")
+                print(f"    Stats: mean={forecast_df['forecast'].mean():.2f}, "
+                      f"min={forecast_df['forecast'].min():.2f}, max={forecast_df['forecast'].max():.2f}")
                 
-                save_forecast(forecast_df, outdir / f"prophet_forecast_{horizon}{horizon_label[0]}.csv")
-                plot_forecast_results(df, forecast_df, "prophet", horizon, outdir)
+                save_forecast(forecast_df, outdir / f"prophet_forecast_{horizon_label}.csv")
+                plot_forecast_results(df, forecast_df, "prophet", horizon_label, outdir)
                 
         elif model_type == "xgb":
-            # For XGBoost, we need to generate features for future dates recursively
             try:
                 import xgboost as xgb
-                
+                print(f"\n  DEBUG: XGBoost Prerequisites")
+                print(f"    - Model exists: {model is not None}")
+                print(f"    - Model type: {type(model)}")
+                print(f"    - Features exist: {feat is not None}")
+                if feat is not None:
+                    print(f"    - Feature shape: {feat.shape}")
+                    print(f"    - Feature columns: {feat.columns.tolist()}")
+                print(f"    - Horizon: {horizon}")
+                print(f"    - Frequency: {freq}")
                 # Generate future dates with correct frequency
                 if freq in ("MS", "ME", "M"):
                     last_date = df.index.to_period("M").to_timestamp()[-1]
                     first_future = last_date + pd.offsets.MonthBegin(1)
                     future_dates = pd.date_range(first_future, periods=horizon, freq="MS")
+                    
                 elif freq in ("W",):
                     first_future = df.index[-1] + pd.Timedelta(weeks=1)
                     future_dates = pd.date_range(first_future, periods=horizon, freq="W")
-                else:
+                    
+                elif freq in ("h", "H"):
+                    first_future = df.index[-1] + pd.Timedelta(hours=1)
+                    future_dates = pd.date_range(first_future, periods=horizon, freq="h")
+                    
+                elif freq in ("15min", "30min", "5min", "min"):
+                    first_future = df.index[-1] + pd.Timedelta(freq)
+                    future_dates = pd.date_range(first_future, periods=horizon, freq=freq)
+                    
+                else:  # Daily
                     first_future = df.index[-1] + pd.Timedelta(days=1)
                     future_dates = pd.date_range(first_future, periods=horizon, freq="D")
                 
                 print(f"    Generating recursive forecast for {horizon} periods...")
+                print(f"    Date range: {future_dates[0]} to {future_dates[-1]}")
                 
-                # Start with historical data to compute initial lags
+                # Start with historical data
                 history = df[["y"]].copy()
                 forecasts = []
                 
-                # Get feature columns used in training
+                # Get feature columns
                 feature_cols = feat.columns.tolist()
-                print(f"    Required features: {feature_cols}")
+                print(f"    Required features: {len(feature_cols)} features")
                 
-                # Pre-generate all calendar and holiday features for all future dates at once
+                # Pre-generate calendar and holiday features
                 future_cal_features = make_calendar_features(
                     future_dates, 
                     weekend_days=cfg.get("weekend_days", [5,6])
                 )
                 
-                # Add holiday features if needed
                 if 'is_holiday' in feature_cols:
                     future_hol_features = make_country_holidays(
                         future_dates,
                         country_code=cfg.get("holiday_country", "AE")
                     )
-                    # Merge holiday features with calendar features
                     for col in future_hol_features.columns:
                         if col in feature_cols:
                             future_cal_features[col] = future_hol_features[col]
                 
+                # Recursive forecasting
                 for i, future_date in enumerate(future_dates):
-                    # Get pre-computed calendar/holiday features for this date
                     date_features = future_cal_features.loc[[future_date]].copy()
                     
-                    # Generate lag and rolling features from history
+                    # Generate lag and rolling features
                     if 'lag_1' in feature_cols:
                         date_features['lag_1'] = history['y'].iloc[-1] if len(history) > 0 else 0
                     if 'lag_7' in feature_cols:
@@ -626,26 +699,28 @@ def main():
                     if 'roll7_std' in feature_cols:
                         date_features['roll7_std'] = history['y'].iloc[-7:].std() if len(history) >= 7 else 0
                     
-                    # Ensure all required features are present in correct order
-                    # Add missing features with default values
+                    # Add missing features
                     for col in feature_cols:
                         if col not in date_features.columns:
                             date_features[col] = 0
                     
                     X_future = date_features[feature_cols]
                     
-                    # Make prediction
+                    # Predict
                     dtest = xgb.DMatrix(X_future)
                     pred = model.predict(dtest)[0]
                     forecasts.append(pred)
                     
-                    # Add prediction to history for next iteration
+                    # Update history
                     new_row = pd.DataFrame({'y': [pred]}, index=[future_date])
                     history = pd.concat([history, new_row])
+                    
+                    if (i + 1) % 100 == 0:
+                        print(f"      Progress: {i+1}/{horizon} periods")
                 
                 forecasts = np.array(forecasts)
                 
-                # Add conformal prediction intervals using validation residuals
+                # Conformal prediction intervals
                 from src.confidence.intervals import conformal_intervals_from_residuals
                 conf = conformal_intervals_from_residuals(y_valid, pred_valid, forecasts)
                 
@@ -655,14 +730,16 @@ def main():
                     "upper": conf.get("upper", forecasts * 1.1)
                 }, index=future_dates)
                 
-                print(f"    Forecast range: {forecast_df.index[0]} to {forecast_df.index[-1]}")
-                print(f"    Forecast stats: mean={forecast_df['forecast'].mean():.2f}, min={forecast_df['forecast'].min():.2f}, max={forecast_df['forecast'].max():.2f}")
+                print(f"    Forecast shape: {forecast_df.shape}")
+                print(f"    Date range: {forecast_df.index[0]} to {forecast_df.index[-1]}")
+                print(f"    Stats: mean={forecast_df['forecast'].mean():.2f}, "
+                      f"min={forecast_df['forecast'].min():.2f}, max={forecast_df['forecast'].max():.2f}")
                 
-                save_forecast(forecast_df, outdir/f"xgb_forecast_{horizon}{horizon_label[0]}.csv")
-                plot_forecast_results(df, forecast_df, "xgb", horizon, outdir)
+                save_forecast(forecast_df, outdir/f"xgb_forecast_{horizon_label}.csv")
+                plot_forecast_results(df, forecast_df, "xgb", horizon_label, outdir)
                 
             except Exception as e:
-                print(f"  ✗ XGBoost forecast generation failed: {str(e)}")
+                print(f"    ✗ XGBoost forecast failed: {str(e)}")
                 import traceback
                 traceback.print_exc()
     # 8. Final metrics & drift check

@@ -28,7 +28,11 @@ datasets:
     date_col: "Date"
     time_col: "Time"
     target_col: "Total"
-    freq: "H"
+    freq: "15min"
+    resample_freq: "h"  # ADD THIS LINE
+    resample_method: "mean"  # ADD THIS LINE
+    weekend_days: [5, 6]
+    holiday_country: "AE"
 
   
   covid:
@@ -50,7 +54,7 @@ datasets:
   
 
 # Active dataset configuration
-dataset_name: ""
+dataset_name: "airline"
 freq: "D"  # Default frequency if not specified in dataset config
 file_candidates:
   - daily_orders_synthetic_2022_2024.csv
