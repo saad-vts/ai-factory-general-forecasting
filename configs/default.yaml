@@ -51,10 +51,22 @@ datasets:
       freq: "D"
       hierarchical: true
       id_cols: ["store_id", "item_id"]
-  
+
+# Add challenging datasets
+  bitcoin:
+    url: "https://raw.githubusercontent.com/datasets/crypto-bitcoin/master/data/bitcoin.csv"
+    date_col: "Date"
+    target_col: "Price"
+    freq: "D"
+    allow_negative: false
+    max_outlier_pct: 0.3   # Very volatile, lenient threshold
+    check_outliers: true
+    handle_outliers: "keep"  # Keep outliers for crypto
+
+
 
 # Active dataset configuration
-dataset_name: "airline"
+dataset_name: "bitcoin"
 freq: "D"  # Default frequency if not specified in dataset config
 file_candidates:
   - daily_orders_synthetic_2022_2024.csv
